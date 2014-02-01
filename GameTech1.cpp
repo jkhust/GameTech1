@@ -720,9 +720,9 @@ void GameTech1::windowClosed(Ogre::RenderWindow* rw)
 	Mix_FreeChunk(_sndExplode);
 
 	Mix_CloseAudio();
-#endif
 
 	SDL_Quit();
+#endif
 
 }
  
