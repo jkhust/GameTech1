@@ -14,6 +14,7 @@ This source file is part of the
       http://www.ogre3d.org/tikiwiki/
 -----------------------------------------------------------------------------
 */
+
 #ifndef __GameTech1_h_
 #define __GameTech1_h_
  
@@ -33,7 +34,29 @@ This source file is part of the
  
 #include <SdkTrays.h>
 #include <SdkCameraMan.h>
- 
+
+
+#define SOUND_ENABLED
+
+#ifdef SOUND_ENABLED
+#include "SDL.h"
+#include "SDL_mixer.h"
+#endif
+
+// ---------------------------------------------------------------------
+
+enum WallType {
+	Wall_Floor = 0,
+	Wall_Ceiling,
+	Wall_Left,      // left wall
+	Wall_Right,     // right wall
+	Wall_Far,       // far wall
+	Wall_Near,      // far wall
+	Wall_Count
+
+};
+
+// ---------------------------------------------------------------------
 class GameTech1 : public Ogre::FrameListener, public Ogre::WindowEventListener, public OIS::KeyListener, public OIS::MouseListener, OgreBites::SdkTrayListener
 {
 public:
@@ -62,15 +85,44 @@ protected:
 		OIS::Keyboard* mKeyboard;
 
 	// game-specific data
-		Ogre::Entity * _entSphere;
+		// "player"
+		Ogre::Entity * _playerEnt;
 		Ogre::Vector3 _vPos;
 		Ogre::Vector3 _vVel;
 		Ogre::Real _fSpeed;
-		Ogre::Real _fWorldSize;
+		Ogre::Real _fRadius;
+		Ogre::Real _boostTime;
+
+		// world geometry
+		Ogre::Plane _walls[6];
+
+		// items
+		Ogre::Entity *_items[25];
+		Ogre::Vector3 _itemRotVel[25];
+
+		// dynamic light for wall bouncing and explosions.
+		Ogre::Light * _dynLight;
+		Ogre::Real _dynLightTime;
+
+		// player-tracking
+		bool _lastKeyT;
+		bool _currKeyT;
+		bool _bTrackPlayer;
+
+		// sounds
+#ifdef SOUND_ENABLED
+		Mix_Chunk *_sndGrassHit;
+		Mix_Chunk *_sndBrickHit;
+		Mix_Chunk *_sndWoodHit;
+		Mix_Chunk *_sndExplode;
+
+#endif
 
 	// MANIPULATORS
 		void createScene(void);
-		void updateScene(Ogre::Real fLastFrameTime);
+		void simulateScene(Ogre::Real fLastFrameTime);
+			void simulateSlice(Ogre::Real fSliceTime);
+		void animateScene(Ogre::Real fLastFrameTime);
 
 	// OVERRIDES
 		// Ogre::FrameListener
