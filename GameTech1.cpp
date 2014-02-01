@@ -126,6 +126,7 @@ bool GameTech1::go(void)
 //-------------------------------------------------------------------------------------
     // Set default mipmap level (NB some APIs ignore this)
     Ogre::TextureManager::getSingleton().setDefaultNumMipmaps(5);
+
 //-------------------------------------------------------------------------------------
     // Create any resource listeners (for loading screens)
     //createResourceListener();
@@ -194,89 +195,322 @@ bool GameTech1::go(void)
 
 // ***********************************************************************************
 void GameTech1::createScene(void) {
-	_entSphere = NULL;
+	// create player - a sphere with radius 10.
+	_playerEnt = NULL;
+	_playerEnt = mSceneMgr->createEntity("Player", "sphere.mesh");
+	assert(_playerEnt);
+	_playerEnt->setMaterialName("Examples/SphereMappedRustySteel");
+	_playerEnt->setCastShadows(true);
 
-	// **** sphere ****
-	_entSphere = mSceneMgr->createEntity("Sphere", "sphere.mesh");
-	Ogre::SceneNode* sphereNode = mSceneMgr->getRootSceneNode()->createChildSceneNode("SphereNode");
-    sphereNode->attachObject(_entSphere);
-	// default sphere has radius 100, so scale it down to radius 10.
-	_entSphere->getParentSceneNode()->scale(0.1f, 0.1f, 0.1f);
+	// attach player
+	Ogre::SceneNode* playerNode = NULL; 
+	playerNode = mSceneMgr->getRootSceneNode()->createChildSceneNode("PlayerNode");
+	// default sphere has radius 100, so scale it down to radius 5
+	_fRadius = 3.0f;
+	playerNode->scale( _fRadius / 100.0f, _fRadius / 100.0f, _fRadius / 100.0f );
+	assert(playerNode);
+    playerNode->attachObject(_playerEnt);
 
+
+	// start at center with random velocity vector.
 	_vPos = Ogre::Vector3(0.0f, 0.0f, 0.0f);
 	_vVel = Ogre::Vector3( random_float(-1.0f, 1.0f), random_float(-1.0f, 1.0f), random_float(-1.0f, 1.0f) );
 	_vVel.normalise();
-	_fSpeed = 60.0f;
+	_fSpeed = random_float(80.0f, 100.0f);
 
-	_fWorldSize = 50.0f;
+	// ***** BUILD WORLD GEOMETRY: floor, ceiling, walls *******
+
+	float fWorldSize = 100.0f;
+
+	// floor
+		Ogre::Plane floorPlane = Ogre::Plane(Ogre::Vector3::UNIT_Y, fWorldSize / -2.0f);
+		Ogre::MeshManager::getSingleton().createPlane("floorPlane", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+		floorPlane, fWorldSize, fWorldSize, 20, 20, true, 1, 1, 1, Ogre::Vector3::UNIT_Z);
+
+		Ogre::Entity* floorEnt = mSceneMgr->createEntity("floor", "floorPlane");
+		floorEnt->setMaterialName("Examples/GrassFloor");
+		floorEnt->setCastShadows(false);
+
+	// ceiling
+		Ogre::Plane ceilingPlane = Ogre::Plane( Ogre::Vector3::NEGATIVE_UNIT_Y, fWorldSize / -2.0f);
+		Ogre::MeshManager::getSingleton().createPlane("ceilingPlane", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+		ceilingPlane, fWorldSize, fWorldSize, 20, 20, true, 1, 5, 5, Ogre::Vector3::UNIT_Z);
+
+		Ogre::Entity* ceilingEnt = mSceneMgr->createEntity("ceiling", "ceilingPlane");
+		ceilingEnt->setMaterialName("WoodPallet");
+		ceilingEnt->setCastShadows(false);
+
+	// left wall
+		Ogre::Plane lwallPlane = Ogre::Plane( Ogre::Vector3::UNIT_X, fWorldSize / -2.0f);
+		Ogre::MeshManager::getSingleton().createPlane("lwallPlane", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+		lwallPlane, fWorldSize, fWorldSize, 20, 20, true, 1, 5, 5, Ogre::Vector3::UNIT_Y);
+
+		Ogre::Entity* lwallEnt = mSceneMgr->createEntity("lwallEnt", "lwallPlane");
+		lwallEnt->setMaterialName("Examples/Rockwall");
+		lwallEnt->setCastShadows(false);
+
+	// right wall
+		Ogre::Plane rwallPlane = Ogre::Plane( Ogre::Vector3::NEGATIVE_UNIT_X, fWorldSize / -2.0f);
+		Ogre::MeshManager::getSingleton().createPlane("rwallPlane", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+		rwallPlane, fWorldSize, fWorldSize, 20, 20, true, 1, 5, 5, Ogre::Vector3::UNIT_Y);
+
+		Ogre::Entity* rwallEnt = mSceneMgr->createEntity("rwallEnt", "rwallPlane");
+		rwallEnt->setMaterialName("Examples/Rockwall");
+		rwallEnt->setCastShadows(false);
+
+	// far wall
+		Ogre::Plane fwallPlane = Ogre::Plane( Ogre::Vector3::UNIT_Z, fWorldSize / -2.0f);
+		Ogre::MeshManager::getSingleton().createPlane("fwallPlane", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+		fwallPlane, fWorldSize, fWorldSize, 20, 20, true, 1, 5, 5, Ogre::Vector3::UNIT_Y);
+
+		Ogre::Entity* fwallEnt = mSceneMgr->createEntity("fwallEnt", "fwallPlane");
+		fwallEnt->setMaterialName("Examples/Rockwall");
+		fwallEnt->setCastShadows(false);
+
+	// near wall
+		Ogre::Plane nwallPlane = Ogre::Plane( Ogre::Vector3::NEGATIVE_UNIT_Z, fWorldSize / -2.0f);
+		Ogre::MeshManager::getSingleton().createPlane("nwallPlane", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+		nwallPlane, fWorldSize, fWorldSize, 20, 20, true, 1, 5, 5, Ogre::Vector3::UNIT_Y);
+
+		Ogre::Entity* nwallEnt = mSceneMgr->createEntity("nwallEnt", "nwallPlane");
+		nwallEnt->setMaterialName("Examples/Rockwall");
+		nwallEnt->setCastShadows(false);
+
+	// ATTACH ALL TO WORLDs
+		Ogre::SceneNode * worldNode = mSceneMgr->getRootSceneNode()->createChildSceneNode("WorldNode");
+		worldNode->attachObject(floorEnt);
+		worldNode->attachObject(ceilingEnt);
+		worldNode->attachObject(lwallEnt);
+		worldNode->attachObject(rwallEnt);
+		worldNode->attachObject(fwallEnt);
+		worldNode->attachObject(nwallEnt);
+
+	// Keep record of all planes added.
+		_walls[Wall_Floor] = floorPlane;
+		_walls[Wall_Ceiling] = ceilingPlane;
+		_walls[Wall_Left] = lwallPlane;
+		_walls[Wall_Right] = rwallPlane;
+		_walls[Wall_Far] = fwallPlane;
+		_walls[Wall_Near] = nwallPlane;
 
 
 	// **** lighting ****
     // ambient
-    mSceneMgr->setAmbientLight(Ogre::ColourValue(0.8, 0.8, 0.8));
+	  mSceneMgr->setAmbientLight(Ogre::ColourValue(0.01f, 0.01f, 0.01f));
+	  mSceneMgr->setShadowTechnique(Ogre::SHADOWTYPE_STENCIL_ADDITIVE);
  
-    // diffuse point light
-    Ogre::Light* l = mSceneMgr->createLight("PL0");
-	l->setType(Ogre::Light::LightTypes::LT_POINT);
-	// l->setAttenuation(500.0f, 0.2f, 0.2f, 0.2f);
-    l->setPosition(300,80,50);
+    // diffuse point lights - one green, one blue
+		Ogre::Light* l1 = mSceneMgr->createLight("PL0");
+		l1->setType(Ogre::Light::LT_POINT);
+		l1->setAttenuation(325.0f, 1.0f, 0.014f, 0.0007f);
+		l1->setDiffuseColour( 1.0f, 1.0f, 1.0f );
+		l1->setSpecularColour( 1.0f, 1.0f, 1.0f );
+		l1->setPosition(30.0f,30.0f,-30.0f);
+		
+		Ogre::Light* l2 = mSceneMgr->createLight("PL1");
+		l2->setType(Ogre::Light::LT_POINT);
+		l2->setAttenuation(325.0f, 1.0f, 0.014f, 0.0007f);
+		l2->setDiffuseColour( 0.0f, 0.0f, 0.8f );
+		l2->setSpecularColour( 0.0f, 0.0f, 0.8f );
+		l2->setPosition(-30.0f,-30.0f, 30.0f);
+	
+
+	// *** build items that can be collided with ***
+	for(int i=0; i < 25; i++) {
+		char name[80];
+		sprintf(name, "Item%d", i);
+		_items[i] = mSceneMgr->createEntity(name, "Barrel.mesh");
+		_items[i]->setCastShadows(true);
+		assert(_items[i] );
+
+		// attack player
+		Ogre::SceneNode* itemNode = mSceneMgr->getRootSceneNode()->createChildSceneNode(name);
+		itemNode->translate( random_float( -fWorldSize * 0.48f, fWorldSize * 0.48f),
+							 random_float( -fWorldSize * 0.48f, fWorldSize * 0.48f),
+							 random_float( -fWorldSize * 0.48f, fWorldSize * 0.48f));
+		itemNode->scale(0.6f, 0.6f, 0.6f);
+		itemNode->attachObject(_items[i]);
+
+		_itemRotVel[i] = Ogre::Vector3(random_float(-60.0f, 60.0f),
+			                           random_float(-60.0f, 60.0f), 
+						               random_float(-60.0f, 60.0f));
+
+	}
+
+	// dynamic light for collisions
+	_dynLight = mSceneMgr->createLight("DL0");
+	_dynLight->setType(Ogre::Light::LightTypes::LT_POINT);
+	_dynLight->setAttenuation(100.0f, 0.7, 0.045, 0.0075);
+	_dynLight->setDiffuseColour( Ogre::ColourValue(0.0f, 0.0f, 0.0f) );
+	_dynLight->setPosition(30.0f,30.0f,-30.0f);
+	_dynLight->setVisible(false);
+
+	// camera doesn't auto-track player by default
+	_lastKeyT = false;
+	_currKeyT = false;
+	_bTrackPlayer = false;
+	// move back a bit
+	mCamera->setPosition( 0.0f, 75.0f, 150.0f);
+	mCamera->lookAt(0.0f, 0.0f, 0.0f);
+	
+#ifdef SOUND_ENABLED
+	_sndGrassHit = NULL;
+	_sndGrassHit = Mix_LoadWAV("sounds/grass_hit.wav");
+	assert(_sndGrassHit);
+
+	_sndBrickHit = NULL;
+	_sndBrickHit = Mix_LoadWAV("sounds/brick_hit.wav");
+	assert(_sndBrickHit);
+
+	_sndWoodHit = NULL;
+	_sndWoodHit  = Mix_LoadWAV("sounds/wood_hit.wav");
+	assert(_sndWoodHit);
+
+	_sndExplode = NULL;
+	_sndExplode  = Mix_LoadWAV("sounds/explode1.wav");
+	assert(_sndExplode);
+
+#endif
 
 }
 
 // ***********************************************************************************
-void GameTech1::updateScene(Ogre::Real fLastFrameTime) {	
-	assert(_entSphere != NULL);
+void GameTech1::simulateScene(Ogre::Real fLastFrameTime) {
+	// calculate slices based on diameter of ball compared against speed.
+	// thus, the ball can never escape because we can never have bullet-through-paper.
+	int iNumSlices = _fSpeed / 10.0f;
+
+	// always have one slice at least.
+	if(iNumSlices < 1)
+		iNumSlices = 1;
+
+
+	float fSliceTime = (float)(fLastFrameTime / ((float)iNumSlices));
+
+	for(int i=0;i< iNumSlices; i++)
+		GameTech1::simulateSlice(fSliceTime);
+
+}
+
+// ***********************************************************************************
+void GameTech1::simulateSlice(Ogre::Real fSliceTime) {	
+	assert(_playerEnt);
 
 	// cal new pos by vel, speed, frametime.
-	Ogre::Vector3 vNewPos = _vPos + (_vVel * _fSpeed * fLastFrameTime); 
+	Ogre::Vector3 vNewPos = _vPos + (_vVel * _fSpeed * fSliceTime); 
 	
-	// furthest point along velocity is our extent.
-	Ogre::Vector3 vExtent = vNewPos + (_vVel * 10.0f);
+	// make a temporary sphere for the player at new position, used for coldet.
+	Ogre::Sphere playerBounds(vNewPos, 3.0f);
 
-	// if our extent is outside of the world bounds, bounce back in.
-	bool bHitWall = false;
-	Ogre::Vector3 vWallNormal;
+	// check intersections with visible items
+	for(int j=0;j<25;j++) {
+		if( _items[j]->isVisible() ) {
+			Ogre::Sphere itemBounds(_items[j]->getParentSceneNode()->getPosition(), 2.0f);
 
-	if(vExtent.x <= -100.0f) {
-		// bounce against the left wall
-		bHitWall = true;
-		vWallNormal = Ogre::Vector3(1.0f, 0.0f, 0.0f);
+			if( itemBounds.intersects(playerBounds)) {
+				_vVel *= -1.0f;
 
-	} else if(vExtent.x >= 100.0f) {
-		bHitWall = true;
-		vWallNormal = Ogre::Vector3(-1.0f, 0.0f, 0.0f);
+				// add a little bit of randomness to the explosion
+				if(_vVel.x < 0.0f)
+					_vVel.x -= random_float(0.0f, 0.5f);
+				else
+					_vVel.x += random_float(0.0f, 0.5f);
 
-	} else if(vExtent.y <= -100.0f) {
-		bHitWall = true;
-		vWallNormal = Ogre::Vector3(0.0f, 1.0f, 0.0f);
+				if(_vVel.y < 0.0f)
+					_vVel.y -= random_float(0.0f, 0.5f);
+				else
+					_vVel.y += random_float(0.0f, 0.5f);
 
-	} else if(vExtent.y >= 100.0f) {
-		bHitWall = true;
-		vWallNormal = Ogre::Vector3(0.0f, -1.0f, 0.0f);
+				if(_vVel.z < 0.0f)
+					_vVel.z -= random_float(0.0f, 0.5f);
+				else
+					_vVel.z += random_float(0.0f, 0.5f);
 
-	} else if(vExtent.z <= -100.0f) {
-		bHitWall = true;
-		vWallNormal = Ogre::Vector3(0.0f, 0.0f, 1.0f);
+				_vVel.normalise();
 
-	} else if(vExtent.z >= 100.0f) {
-		bHitWall = true;
-		vWallNormal = Ogre::Vector3(0.0f, 0.0f, -1.0f);
+				_fSpeed *= 1.3f;
+				_items[j]->setVisible(false);
+
+				// red explosion light
+				_dynLight->setPosition(_vPos);
+				_dynLight->setDiffuseColour(1.0f, 0.0f, 0.0f);
+				_dynLight->setSpecularColour(1.0f, 0.0f, 0.0f);
+				_dynLight->setAttenuation(600.0f, 1.0f, 0.014f, 0.0007f);
+				_dynLight->setVisible(true);
+				_dynLightTime = 0.2f;
+
+#ifdef SOUND_ENABLED
+				Mix_PlayChannel(-1, _sndExplode, 0);
+#endif
+
+				return;
+
+			}
+
+		}
 
 	}
 
-	// *** hit a wall? 
-	if(bHitWall) {
-		// reflect our velocity, but don't actually move into the invalid region.
-		_vVel = vec3_reflect(_vVel, vWallNormal);
+	for(int i=0;i<Wall_Count; i++) {
+		if( playerBounds.intersects( _walls[i] ) ) {
+			Ogre::Vector3 vWallNormal = _walls[i].normal;
+			_vVel = _vVel.reflect(vWallNormal);
+			// slow down a bit.
+			_fSpeed *= 0.98f;
+			// TODO: play sound on reflect
 
-	} else {
-		_vPos = vNewPos;
+			// move dyn light to player.
+			_dynLight->setPosition(_vPos);
+			_dynLight->setDiffuseColour(1.0f, 1.0f, 0.0f);
+			_dynLight->setSpecularColour(1.0f, 1.0f, 0.0f);
+			_dynLight->setAttenuation(200.0f, 0.7, 0.022, 0.0019);
+			_dynLight->setVisible(true);
+			_dynLightTime = 0.2f;
 
+#ifdef SOUND_ENABLED
+			if(i == Wall_Floor)
+				Mix_PlayChannel(-1, _sndGrassHit, 0);
+			else if(i == Wall_Ceiling)
+				Mix_PlayChannel(-1, _sndWoodHit, 0);
+			else
+				Mix_PlayChannel(-1, _sndBrickHit, 0);
+
+#endif
+	
+			return;
+
+		}
 	}
+
+
+	// made it this far? move instead.
+	_vPos = vNewPos;
 
 	// move to whatever pos we generated.
-	_entSphere->getParentSceneNode()->setPosition(_vPos);
-	_entSphere->getParentSceneNode()->yaw( Ogre::Degree(30.0f * fLastFrameTime) );
+	_playerEnt->getParentSceneNode()->setPosition(_vPos);
+
+}
+
+// ***********************************************************************************
+void GameTech1::animateScene(float fTimeSinceLastFrame) {
+	float degToRad = 3.14159265f / 180.0f;
+
+	// spin barrels around randomly
+	for(int j=0;j<25;j++) {
+		if( _items[j]->isVisible() ) {
+			Ogre::SceneNode * parent = _items[j]->getParentSceneNode();
+
+			parent->rotate(Ogre::Vector3::UNIT_X, Ogre::Radian(_itemRotVel[j].x * degToRad * fTimeSinceLastFrame) );
+			parent->rotate(Ogre::Vector3::UNIT_Y, Ogre::Radian(_itemRotVel[j].x * degToRad * fTimeSinceLastFrame) );
+			parent->rotate(Ogre::Vector3::UNIT_Z, Ogre::Radian(_itemRotVel[j].x * degToRad * fTimeSinceLastFrame) ) ;
+
+		}
+
+	}
+
+	// show or hide the dynamic light
+	_dynLightTime -= fTimeSinceLastFrame;
+	_dynLight->setVisible(_dynLightTime > 0.0f);
 
 }
 
@@ -310,7 +544,22 @@ bool GameTech1::frameRenderingQueued(const Ogre::FrameEvent& evt)
         }
     }
 
-	this->updateScene(evt.timeSinceLastFrame);
+	// *** T key down? track player
+	_lastKeyT = _currKeyT;
+	_currKeyT = mKeyboard->isKeyDown(OIS::KeyCode::KC_T);
+	if(!_lastKeyT && _currKeyT) {
+		_bTrackPlayer = !_bTrackPlayer;
+
+	}
+
+	if(mKeyboard->isKeyDown(OIS::KeyCode::KC_P))
+		_fSpeed *= 1.2f;
+
+	if(_bTrackPlayer)
+		mCamera->lookAt(_playerEnt->getParentSceneNode()->getPosition() );
+
+	this->simulateScene(evt.timeSinceLastFrame);
+	this->animateScene(evt.timeSinceLastFrame);
 
     return true;
 }
@@ -463,6 +712,18 @@ void GameTech1::windowClosed(Ogre::RenderWindow* rw)
             mInputManager = 0;
         }
     }
+	
+#ifdef SOUND_ENABLED
+	Mix_FreeChunk(_sndGrassHit);
+	Mix_FreeChunk(_sndBrickHit);
+	Mix_FreeChunk(_sndWoodHit);
+	Mix_FreeChunk(_sndExplode);
+
+	Mix_CloseAudio();
+#endif
+
+	SDL_Quit();
+
 }
  
  
@@ -483,6 +744,18 @@ extern "C" {
 #endif
     {
 		srand(time(NULL));
+
+#ifdef SOUND_ENABLED
+		/* Initialize SDL */
+		if ( SDL_Init(SDL_INIT_AUDIO) < 0 ) {
+			fprintf(stderr, "Couldn't initialize SDL: %s\n", SDL_GetError());
+			exit(1);
+		}
+
+		int audioInitResult = Mix_OpenAudio(22050, MIX_DEFAULT_FORMAT, 2, 4096);
+		assert(audioInitResult != -1);
+#endif
+
         // Create application object
         GameTech1 app;
  
